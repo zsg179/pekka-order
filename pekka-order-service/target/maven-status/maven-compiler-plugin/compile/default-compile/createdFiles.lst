@@ -1,0 +1,4 @@
+com\pekka\order\service\impl\OrderServiceImpl.class
+com\pekka\jedis\JedisClientCluster.class
+com\pekka\jedis\JedisClientPool.class
+com\pekka\jedis\JedisClient.class

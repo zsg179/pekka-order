@@ -90,8 +90,50 @@ public class OrderServiceImpl implements OrderService {
 		Criteria criteria = example.createCriteria();
 		criteria.andUsernameEqualTo(username);
 		List<TbReceivingAddress> list = receivingAddressMapper.selectByExample(example);
+		// 第一次买东西，无收货地址记录
+		if (list.size() == 0) {
+			TbReceivingAddress receiver = new TbReceivingAddress();
+			return receiver;
+		}
 		TbReceivingAddress receiver = list.get(0);
 		return receiver;
+	}
+
+	/**
+	 * 保存收货人信息 ，设定每个用户只有一个收货信息
+	 * 
+	 * @param receiver
+	 * @return
+	 */
+	@Override
+	public PekkaResult saveReceiver(TbReceivingAddress receiver) {
+		TbReceivingAddressExample example = new TbReceivingAddressExample();
+		Criteria criteria = example.createCriteria();
+		criteria.andUsernameEqualTo(receiver.getUsername());
+		List<TbReceivingAddress> list = receivingAddressMapper.selectByExample(example);
+		if (list.size() == 0) {
+			// 第一次设置收货地址
+			try {
+				// 补全pojo
+				receiver.setCreated(new Date());
+				receiver.setUpdated(new Date());
+				receivingAddressMapper.insert(receiver);
+			} catch (RuntimeException e) {
+				return PekkaResult.build(500, "保存失败");
+			}
+
+		} else {
+			// 更新收货人呢信息
+			try {
+				// 补全pojo
+				receiver.setUpdated(new Date());
+				receivingAddressMapper.updateByExampleSelective(receiver, example);// 使用选择性插入，因为接收到的receiver中没有createtime
+			} catch (RuntimeException e) {
+				return PekkaResult.build(500, "保存失败");
+			}
+
+		}
+		return PekkaResult.ok();
 	}
 
 }

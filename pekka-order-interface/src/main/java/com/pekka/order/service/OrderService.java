@@ -8,4 +8,6 @@ public interface OrderService {
 	PekkaResult createOrder(OrderInfo orderInfo);
 
 	TbReceivingAddress getReceiverByUserName(String username);
+
+	PekkaResult saveReceiver(TbReceivingAddress receiver);
 }

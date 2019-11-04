@@ -131,7 +131,7 @@ public class OrderServiceImpl implements OrderService {
 				jedisClient.zincrby(SALES_RANKING + "_YIZHI_AD", sales, itemJson);
 				break;
 			case 2:
-				jedisClient.zincrby(SALES_RANKING + "_YAOKONG", sales, itemJson);
+				jedisClient.zincrby(SALES_RANKING + "_YAOKONG_AD", sales, itemJson);
 				break;
 			case 3:
 				jedisClient.zincrby(SALES_RANKING + "_JMPC_AD", sales, itemJson);

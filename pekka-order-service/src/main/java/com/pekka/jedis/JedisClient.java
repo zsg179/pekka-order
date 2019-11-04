@@ -1,6 +1,8 @@
 package com.pekka.jedis;
 
-import org.quartz.utils.StringKeyDirtyFlagMap;
+import java.util.Set;
+
+import com.pekka.pojo.TbItem;
 
 public interface JedisClient {
 
@@ -13,5 +15,7 @@ public interface JedisClient {
 	Long hset(String key, String field, String value);
 	String hget(String key, String field);	
 	Long hdel(String key,String... field);//删除hkey
+	Integer zincrby(String key,int sales,String itemJson);
+	Set<String> zrevrange(String key,int start,int end); 
 	
 }

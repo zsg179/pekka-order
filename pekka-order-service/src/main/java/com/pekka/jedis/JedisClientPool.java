@@ -1,12 +1,14 @@
 package com.pekka.jedis;
 
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
 public class JedisClientPool implements JedisClient {
-	
+
 	@Autowired
 	private JedisPool jedisPool;
 
@@ -80,6 +82,19 @@ public class JedisClientPool implements JedisClient {
 		Long hdel = jedis.hdel(key, field);
 		jedis.close();
 		return hdel;
-	}	
+	}
+
+	@Override
+	public Integer zincrby(String key, int sales, String itemJson) {
+		Jedis jedis = jedisPool.getResource();
+		Double zincrby = jedis.zincrby(key, sales, itemJson);
+		return zincrby.intValue();
+	}
+
+	@Override
+	public Set<String> zrevrange(String key, int start, int end) {
+		Jedis jedis = jedisPool.getResource();
+		return jedis.zrevrange(key, start, end);
+	}
 
 }

@@ -8,13 +8,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.pekka.common.pojo.PekkaResult;
+import com.pekka.common.util.JsonUtils;
 import com.pekka.jedis.JedisClient;
+import com.pekka.mapper.TbItemMapper;
 import com.pekka.mapper.TbOrderItemMapper;
 import com.pekka.mapper.TbOrderMapper;
 import com.pekka.mapper.TbOrderShippingMapper;
 import com.pekka.mapper.TbReceivingAddressMapper;
 import com.pekka.order.pojo.OrderInfo;
 import com.pekka.order.service.OrderService;
+import com.pekka.pojo.TbItem;
 import com.pekka.pojo.TbOrderItem;
 import com.pekka.pojo.TbOrderShipping;
 import com.pekka.pojo.TbReceivingAddress;
@@ -34,6 +37,8 @@ public class OrderServiceImpl implements OrderService {
 	private TbOrderShippingMapper orderShippingMapper;
 	@Autowired
 	private TbReceivingAddressMapper receivingAddressMapper;
+	@Autowired
+	private TbItemMapper itemMapper;
 
 	@Value("${ORDER_ID_GEN_KEY}")
 	private String ORDER_ID_GEN_KEY;
@@ -43,9 +48,24 @@ public class OrderServiceImpl implements OrderService {
 	private String ORDER_ITEM_ID_GEN_KEY;
 	@Value("${USER_SESSION}")
 	private String USER_SESSION;
+	@Value("${SALES_RANKING}")
+	private String SALES_RANKING;
 
 	@Override
 	public PekkaResult createOrder(OrderInfo orderInfo) {
+		List<TbOrderItem> orderItems = orderInfo.getOrderItems();
+		// 先查看商品库存
+		for (TbOrderItem tbOrderItem : orderItems) {
+			String itemId = tbOrderItem.getItemId();
+			TbItem tbItem = itemMapper.selectByPrimaryKey(Long.parseLong(itemId));
+			if (tbItem.getNum() - tbOrderItem.getNum() < 0) {
+				// 商品库存不足
+				return PekkaResult.build(500, "商品库存不足！");
+			}
+		}
+		// 购买的商品数量都足够，则存入redis中
+		salesRanking(orderItems);
+
 		// 生成订单号，可以使用redis的incr生成
 		if (!jedisClient.exists(ORDER_ID_GEN_KEY)) {
 			// 设置初始值
@@ -63,8 +83,15 @@ public class OrderServiceImpl implements OrderService {
 		orderInfo.setUpdateTime(new Date());
 		// 向订单表插入数据
 		orderMapper.insert(orderInfo);
+
 		// 向订单明细表插入数据
-		List<TbOrderItem> orderItems = orderInfo.getOrderItems();
+		orderShipping(orderItems, orderId, orderInfo);
+
+		// 返回订单号
+		return PekkaResult.ok(orderInfo);
+	}
+
+	public void orderShipping(List<TbOrderItem> orderItems, String orderId, OrderInfo orderInfo) {
 		for (TbOrderItem tbOrderItem : orderItems) {
 			// 获得明细主键
 			String oid = jedisClient.incr(ORDER_ITEM_ID_GEN_KEY).toString();
@@ -79,8 +106,66 @@ public class OrderServiceImpl implements OrderService {
 		orderShipping.setCreated(new Date());
 		orderShipping.setUpdated(new Date());
 		orderShippingMapper.insert(orderShipping);
-		// 返回订单号
-		return PekkaResult.ok(orderId);
+	}
+
+	/**
+	 * 商品销量存入redis，形成排行榜
+	 * 
+	 * @param orderItems
+	 */
+	public void salesRanking(List<TbOrderItem> orderItems) {
+		for (TbOrderItem tbOrderItem : orderItems) {
+			String itemId = tbOrderItem.getItemId();
+			TbItem tbItem = itemMapper.selectByPrimaryKey(Long.parseLong(itemId));
+			String itemJson = JsonUtils.objectToJson(tbItem);
+			// 广告分类id
+			int adId = tbItem.getAdId().intValue();
+			// 销量
+			int sales = tbOrderItem.getNum();
+			// 商品销量增加
+			switch (adId) {
+			case 0:
+				jedisClient.zincrby(SALES_RANKING + "_HOT_AD", sales, itemJson);
+				break;
+			case 1:
+				jedisClient.zincrby(SALES_RANKING + "_YIZHI_AD", sales, itemJson);
+				break;
+			case 2:
+				jedisClient.zincrby(SALES_RANKING + "_YAOKONG", sales, itemJson);
+				break;
+			case 3:
+				jedisClient.zincrby(SALES_RANKING + "_JMPC_AD", sales, itemJson);
+				break;
+			case 4:
+				jedisClient.zincrby(SALES_RANKING + "_DMMX_AD", sales, itemJson);
+				break;
+			case 5:
+				jedisClient.zincrby(SALES_RANKING + "_JSWJ_AD", sales, itemJson);
+				break;
+			case 6:
+				jedisClient.zincrby(SALES_RANKING + "_MRWJ_AD", sales, itemJson);
+				break;
+			case 7:
+				jedisClient.zincrby(SALES_RANKING + "_CYDIY_AD", sales, itemJson);
+				break;
+			case 8:
+				jedisClient.zincrby(SALES_RANKING + "_YQ_AD", sales, itemJson);
+				break;
+			default:
+				break;
+			}
+
+			// 商品库存减少
+			tbItem.setNum(tbItem.getNum() - tbOrderItem.getNum());
+			tbItem.setUpdated(new Date());
+			// 持久化
+			try {
+				itemMapper.updateByPrimaryKeySelective(tbItem);
+			} catch (RuntimeException e) {
+				e.printStackTrace();
+			}
+
+		}
 	}
 
 	@Override

@@ -1,11 +1,13 @@
 package com.pekka.jedis;
 
+import java.util.Set;
+
 import org.springframework.beans.factory.annotation.Autowired;
 
 import redis.clients.jedis.JedisCluster;
 
 public class JedisClientCluster implements JedisClient {
-	
+
 	@Autowired
 	private JedisCluster jedisCluster;
 
@@ -53,6 +55,18 @@ public class JedisClientCluster implements JedisClient {
 	public Long hdel(String key, String... field) {
 		// TODO Auto-generated method stub
 		return jedisCluster.hdel(key, field);
+	}
+
+	@Override
+	public Integer zincrby(String key, int sales, String itemJson) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Set<String> zrevrange(String key, int start, int end) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

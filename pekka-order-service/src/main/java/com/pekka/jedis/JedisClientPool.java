@@ -88,13 +88,16 @@ public class JedisClientPool implements JedisClient {
 	public Integer zincrby(String key, int sales, String itemJson) {
 		Jedis jedis = jedisPool.getResource();
 		Double zincrby = jedis.zincrby(key, sales, itemJson);
+		jedis.close();
 		return zincrby.intValue();
 	}
 
 	@Override
 	public Set<String> zrevrange(String key, int start, int end) {
 		Jedis jedis = jedisPool.getResource();
-		return jedis.zrevrange(key, start, end);
+		Set<String> set = jedis.zrevrange(key, start, end);
+		jedis.close();
+		return set;
 	}
 
 }

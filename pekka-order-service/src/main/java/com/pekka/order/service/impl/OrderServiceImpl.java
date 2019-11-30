@@ -18,7 +18,9 @@ import com.pekka.mapper.TbReceivingAddressMapper;
 import com.pekka.order.pojo.OrderInfo;
 import com.pekka.order.service.OrderService;
 import com.pekka.pojo.TbItem;
+import com.pekka.pojo.TbOrder;
 import com.pekka.pojo.TbOrderItem;
+import com.pekka.pojo.TbOrderItemExample;
 import com.pekka.pojo.TbOrderShipping;
 import com.pekka.pojo.TbReceivingAddress;
 import com.pekka.pojo.TbReceivingAddressExample;
@@ -81,6 +83,9 @@ public class OrderServiceImpl implements OrderService {
 		// 订单创建时间
 		orderInfo.setCreateTime(new Date());
 		orderInfo.setUpdateTime(new Date());
+		// 用户名和id
+		// orderInfo.setBuyerNick(orderInfo.getUserName());
+		// orderInfo.setUserId(orderInfo.getUserId());
 		// 向订单表插入数据
 		orderMapper.insert(orderInfo);
 
@@ -117,11 +122,20 @@ public class OrderServiceImpl implements OrderService {
 		for (TbOrderItem tbOrderItem : orderItems) {
 			String itemId = tbOrderItem.getItemId();
 			TbItem tbItem = itemMapper.selectByPrimaryKey(Long.parseLong(itemId));
-			String itemJson = JsonUtils.objectToJson(tbItem);
 			// 广告分类id
 			int adId = tbItem.getAdId().intValue();
-			// 销量
+			// 购买数量
 			int sales = tbOrderItem.getNum();
+			// 商品库存减少
+			tbItem.setNum(tbItem.getNum() - sales);
+			tbItem.setUpdated(new Date());
+			// 持久化
+			try {
+				itemMapper.updateByPrimaryKeySelective(tbItem);
+			} catch (RuntimeException e) {
+				e.printStackTrace();
+			}
+			String itemJson = JsonUtils.objectToJson(tbItem);
 			// 商品销量增加
 			switch (adId) {
 			case 0:
@@ -153,16 +167,6 @@ public class OrderServiceImpl implements OrderService {
 				break;
 			default:
 				break;
-			}
-
-			// 商品库存减少
-			tbItem.setNum(tbItem.getNum() - tbOrderItem.getNum());
-			tbItem.setUpdated(new Date());
-			// 持久化
-			try {
-				itemMapper.updateByPrimaryKeySelective(tbItem);
-			} catch (RuntimeException e) {
-				e.printStackTrace();
 			}
 
 		}
@@ -219,6 +223,35 @@ public class OrderServiceImpl implements OrderService {
 
 		}
 		return PekkaResult.ok();
+	}
+
+	@Override
+	public TbOrder getOrderByOrderId(String orderId) {
+		return orderMapper.selectByPrimaryKey(orderId);
+	}
+
+	@Override
+	public TbOrderItem getOrderItemByOrderId(String orderId) {
+		TbOrderItemExample example = new TbOrderItemExample();
+		com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+		criteria.andOrderIdEqualTo(orderId);
+		List<TbOrderItem> list = orderItemMapper.selectByExample(example);
+		return list.get(0);
+	}
+
+	@Override
+	public void updateOrderStatus(String orderId, Integer status) {
+		TbOrder order = orderMapper.selectByPrimaryKey(orderId);
+		order.setStatus(status);
+		if (status == 2) {
+			order.setPaymentTime(new Date());
+		} else if (status == 4) {
+			order.setConsignTime(new Date());
+		} else if (status == 5) {
+			order.setEndTime(new Date());
+		}
+		order.setUpdateTime(new Date());
+		orderMapper.updateByPrimaryKeySelective(order);
 	}
 
 }

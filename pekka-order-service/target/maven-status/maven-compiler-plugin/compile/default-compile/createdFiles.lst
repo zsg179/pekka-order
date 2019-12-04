@@ -1,4 +1,6 @@
-com\pekka\order\service\impl\OrderServiceImpl.class
-com\pekka\jedis\JedisClientCluster.class
 com\pekka\jedis\JedisClientPool.class
+com\pekka\jedis\JedisClientCluster.class
+com\pekka\order\service\impl\OrderServiceImpl.class
+com\pekka\order\mapper\OrderMapper.class
+com\pekka\order\pojo\RedisItem.class
 com\pekka\jedis\JedisClient.class

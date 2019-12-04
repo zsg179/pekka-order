@@ -1,8 +1,10 @@
 package com.pekka.order.service.impl;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,7 +17,9 @@ import com.pekka.mapper.TbOrderItemMapper;
 import com.pekka.mapper.TbOrderMapper;
 import com.pekka.mapper.TbOrderShippingMapper;
 import com.pekka.mapper.TbReceivingAddressMapper;
+import com.pekka.order.mapper.OrderMapper;
 import com.pekka.order.pojo.OrderInfo;
+import com.pekka.order.pojo.RedisItem;
 import com.pekka.order.service.OrderService;
 import com.pekka.pojo.TbItem;
 import com.pekka.pojo.TbOrder;
@@ -41,6 +45,8 @@ public class OrderServiceImpl implements OrderService {
 	private TbReceivingAddressMapper receivingAddressMapper;
 	@Autowired
 	private TbItemMapper itemMapper;
+	@Autowired
+	private OrderMapper mapper;
 
 	@Value("${ORDER_ID_GEN_KEY}")
 	private String ORDER_ID_GEN_KEY;
@@ -135,7 +141,7 @@ public class OrderServiceImpl implements OrderService {
 			} catch (RuntimeException e) {
 				e.printStackTrace();
 			}
-			String itemJson = JsonUtils.objectToJson(tbItem);
+			String itemJson = JsonUtils.objectToJson(new RedisItem(tbItem));
 			// 商品销量增加
 			switch (adId) {
 			case 0:
@@ -252,6 +258,114 @@ public class OrderServiceImpl implements OrderService {
 		}
 		order.setUpdateTime(new Date());
 		orderMapper.updateByPrimaryKeySelective(order);
+	}
+
+	@Override
+	public List<OrderInfo> getAllOrders(Long userId) {
+		List<OrderInfo> allOrders = mapper.getAllOrders(userId);
+		for (OrderInfo orderInfo : allOrders) {
+			TbOrderItemExample example = new TbOrderItemExample();
+			com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+			criteria.andOrderIdEqualTo(orderInfo.getOrderId());
+			int num = orderItemMapper.countByExample(example);
+			orderInfo.setItemTpyeNum(num);
+		}
+		return allOrders;
+	}
+
+	@Override
+	public PekkaResult deleteOrder(String orderId) {
+		try {
+			orderMapper.deleteByPrimaryKey(orderId);
+		} catch (Exception e) {
+			return PekkaResult.build(500, "删除失败");
+		}
+		return PekkaResult.ok();
+	}
+
+	@Override
+	public List<OrderInfo> getOrderByStatus(Long userId, int status) {
+		List<OrderInfo> list = mapper.getOrderByStatus(userId, status);
+		for (OrderInfo orderInfo : list) {
+			TbOrderItemExample example = new TbOrderItemExample();
+			com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+			criteria.andOrderIdEqualTo(orderInfo.getOrderId());
+			int num = orderItemMapper.countByExample(example);
+			orderInfo.setItemTpyeNum(num);
+		}
+		return list;
+	}
+
+	@Override
+	public PekkaResult harvest(String orderId) {
+		try {
+			TbOrder order = orderMapper.selectByPrimaryKey(orderId);
+			order.setStatus(5);
+			order.setEndTime(new Date());
+			order.setUpdateTime(new Date());
+			orderMapper.updateByPrimaryKeySelective(order);
+		} catch (Exception e) {
+			return PekkaResult.build(500, "操作失败");
+		}
+		return PekkaResult.ok();
+	}
+
+	@Override
+	public List<OrderInfo> searchOrder(String key) {
+		List<OrderInfo> result = new ArrayList<>();
+		if (StringUtils.isNumeric(key)) {
+			// 纯数字
+			// 先查订单
+			OrderInfo orderInfo = mapper.searchOrderByOrderId(key);
+			if (orderInfo != null) {
+				// 有这个订单
+				TbOrderItemExample example = new TbOrderItemExample();
+				com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+				criteria.andOrderIdEqualTo(orderInfo.getOrderId());
+				int num = orderItemMapper.countByExample(example);
+				orderInfo.setItemTpyeNum(num);
+				result.add(orderInfo);
+				return result;
+			}
+			// 订单若为空，则查询商品id
+			TbOrderItemExample example = new TbOrderItemExample();
+			com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+			criteria.andItemIdEqualTo(key);
+			List<TbOrderItem> itemList = orderItemMapper.selectByExample(example);
+			if (itemList != null && itemList.size() > 0) {
+				for (TbOrderItem tbOrderItem : itemList) {
+					orderInfo = mapper.searchOrderByOrderId(tbOrderItem.getOrderId());
+					if (orderInfo == null)
+						continue;
+					example = new TbOrderItemExample();
+					criteria = example.createCriteria();
+					criteria.andOrderIdEqualTo(orderInfo.getOrderId());
+					int num = orderItemMapper.countByExample(example);
+					orderInfo.setItemTpyeNum(num);
+					result.add(orderInfo);
+				}
+				return result;
+			}
+		}
+		// 不是纯数字或者是纯数字但没有找到对应的订单
+		TbOrderItemExample example = new TbOrderItemExample();
+		com.pekka.pojo.TbOrderItemExample.Criteria criteria = example.createCriteria();
+		criteria.andTitleLike("%" + key + "%");
+		List<TbOrderItem> itemList = orderItemMapper.selectByExample(example);
+		if (itemList != null && itemList.size() > 0) {
+			for (TbOrderItem tbOrderItem : itemList) {
+				OrderInfo orderInfo = mapper.searchOrderByOrderId(tbOrderItem.getOrderId());
+				if (orderInfo == null)
+					continue;
+				example = new TbOrderItemExample();
+				criteria = example.createCriteria();
+				criteria.andOrderIdEqualTo(orderInfo.getOrderId());
+				int num = orderItemMapper.countByExample(example);
+				orderInfo.setItemTpyeNum(num);
+				result.add(orderInfo);
+			}
+		}
+		return result;
 	}
 
 }

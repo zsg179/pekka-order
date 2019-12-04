@@ -31,6 +31,6 @@
 		<property name="configLocation" value="classpath:mybatis/mybatis-config.xml" />
 	</bean>
 	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-		<property name="basePackage" value="com.pekka.mapper" />
+		<property name="basePackage" value="com.pekka.mapper,com.pekka.order.mapper" />
 	</bean>
 </beans>

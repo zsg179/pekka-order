@@ -1,5 +1,7 @@
 package com.pekka.order.service;
 
+import java.util.List;
+
 import com.pekka.common.pojo.PekkaResult;
 import com.pekka.order.pojo.OrderInfo;
 import com.pekka.pojo.TbOrder;
@@ -18,5 +20,15 @@ public interface OrderService {
 	TbOrderItem getOrderItemByOrderId(String orderId);
 
 	void updateOrderStatus(String orderId, Integer status);
+
+	List<OrderInfo> getAllOrders(Long userId);
+
+	PekkaResult deleteOrder(String orderId);
+
+	List<OrderInfo> getOrderByStatus(Long userId, int status);
+
+	PekkaResult harvest(String orderId);
+
+	List<OrderInfo> searchOrder(String key);
 
 }

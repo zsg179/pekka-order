@@ -128,8 +128,8 @@ public class OrderServiceImpl implements OrderService {
 		for (TbOrderItem tbOrderItem : orderItems) {
 			String itemId = tbOrderItem.getItemId();
 			TbItem tbItem = itemMapper.selectByPrimaryKey(Long.parseLong(itemId));
-			// 广告分类id
-			int adId = tbItem.getAdId().intValue();
+			// 广告分类名称
+			String categoryName = tbItem.getCategoryName();
 			// 购买数量
 			int sales = tbOrderItem.getNum();
 			// 商品库存减少
@@ -142,33 +142,32 @@ public class OrderServiceImpl implements OrderService {
 				e.printStackTrace();
 			}
 			String itemJson = JsonUtils.objectToJson(new RedisItem(tbItem));
+			// 当季热卖即总排行榜
+			jedisClient.zincrby(SALES_RANKING + "_HOT_AD", sales, itemJson);
 			// 商品销量增加
-			switch (adId) {
-			case 0:
-				jedisClient.zincrby(SALES_RANKING + "_HOT_AD", sales, itemJson);
-				break;
-			case 1:
+			switch (categoryName) {
+			case "益智玩具":
 				jedisClient.zincrby(SALES_RANKING + "_YIZHI_AD", sales, itemJson);
 				break;
-			case 2:
+			case "遥控电动":
 				jedisClient.zincrby(SALES_RANKING + "_YAOKONG_AD", sales, itemJson);
 				break;
-			case 3:
+			case "积木拼插":
 				jedisClient.zincrby(SALES_RANKING + "_JMPC_AD", sales, itemJson);
 				break;
-			case 4:
+			case "动漫模型":
 				jedisClient.zincrby(SALES_RANKING + "_DMMX_AD", sales, itemJson);
 				break;
-			case 5:
+			case "健身玩具":
 				jedisClient.zincrby(SALES_RANKING + "_JSWJ_AD", sales, itemJson);
 				break;
-			case 6:
+			case "毛绒玩具":
 				jedisClient.zincrby(SALES_RANKING + "_MRWJ_AD", sales, itemJson);
 				break;
-			case 7:
+			case "创意DIY":
 				jedisClient.zincrby(SALES_RANKING + "_CYDIY_AD", sales, itemJson);
 				break;
-			case 8:
+			case "乐器":
 				jedisClient.zincrby(SALES_RANKING + "_YQ_AD", sales, itemJson);
 				break;
 			default:
